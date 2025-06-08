@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Uniswap DApp Interaction</title>
+    <title>DApp Connection</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -27,66 +27,47 @@
         }
         h1 { color: #1f1f1f; margin-bottom: 1rem; }
         p { color: #666; margin-bottom: 1.5rem; line-height: 1.5; }
-        #connection-status {
-            margin-top: 1.5rem;
-            font-size: 14px;
-            color: #2e7d32;
-            background: #e8f5e9;
-            padding: 0.75rem;
-            border-radius: 8px;
-            display: none; /* Hidden by default */
-            word-wrap: break-word;
-        }
-        #interaction-section {
-            margin-top: 1rem;
+        #connection-details {
+            margin-top: 2rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
             display: none; /* Hidden by default */
+            text-align: left;
         }
-        #interaction-section button {
-            width: 100%;
-            padding: 1rem;
-            background: #332; /* User's preferred color */
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
+        #connection-details h2 {
+            font-size: 1.2rem;
             margin-bottom: 1rem;
+            text-align: center;
         }
-        #interaction-section button:hover { background: #444; }
-        #result {
+        #connection-details p {
             background: #f0f0f0;
             padding: 1rem;
             border-radius: 8px;
             word-wrap: break-word;
-            text-align: left;
             font-family: monospace;
             font-size: 14px;
-            display: none;
+        }
+        #connection-details .label {
+            font-weight: 600;
+            color: #333;
         }
     </style>
 </head>
 <body>
     <main>
         <h1>WalletConnect DApp</h1>
-        <p>First, connect your wallet. Then, interact with the Uniswap contract.</p>
+        <p>Connect your wallet to see your address and network information.</p>
         <w3m-button></w3m-button>
 
-        <div id="connection-status"></div>
-
-        <div id="interaction-section">
-            <h2>Uniswap V3 Factory</h2>
-            <p>Get the tick spacing for a fee tier. This is a read-only call to a live Uniswap contract.</p>
-            <button id="interactButton">Get Fee Tier Info (0.05%)</button>
-            <pre id="result"></pre>
+        <div id="connection-details">
+            <h2>✅ Connection Successful</h2>
+            <p><span class="label">Address:</span> <span id="address"></span></p>
+            <p><span class="label">Network:</span> <span id="network"></span></p>
         </div>
     </main>
 
     <script type="module">
         import { createWeb3Modal, defaultConfig } from 'https://esm.sh/@web3modal/ethers@4.1.11';
-        import { ethers } from 'https://esm.sh/ethers@5.7.2';
 
         const projectId = '0f1f7e3f5b3f1b2ffe4a8aada3702f6b';
 
@@ -114,51 +95,24 @@
             enableAnalytics: true
         });
 
-        // --- DApp Interaction Logic ---
-
-        const interactionSection = document.getElementById('interaction-section');
-        const interactButton = document.getElementById('interactButton');
-        const resultDiv = document.getElementById('result');
-        const connectionStatusDiv = document.getElementById('connection-status');
-
-        const uniswapFactoryAddress = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
-        const uniswapFactoryAbi = ['function feeAmountTickSpacing(uint24 fee) external view returns (int24)'];
+        // --- UI Update Logic ---
+        const connectionDetailsSection = document.getElementById('connection-details');
+        const addressSpan = document.getElementById('address');
+        const networkSpan = document.getElementById('network');
 
         // Listen for state changes to robustly handle mobile connections
-        modal.subscribeState(state => {
-            const isConnected = state.isConnected;
+        modal.subscribeState(newState => {
+            if (newState.open) return; // Wait until modal is closed
 
-            interactionSection.style.display = isConnected ? 'block' : 'none';
-            connectionStatusDiv.style.display = isConnected ? 'block' : 'none';
+            const isConnected = newState.isConnected;
+
+            connectionDetailsSection.style.display = isConnected ? 'block' : 'none';
 
             if (isConnected) {
-                const address = modal.getAddress();
-                connectionStatusDiv.textContent = `✅ Connected: ${address.slice(0, 6)}...${address.slice(-4)}`;
-            } else {
-                resultDiv.style.display = 'none';
+                addressSpan.textContent = modal.getAddress();
+                networkSpan.textContent = modal.getChainName();
             }
         });
-        
-        interactButton.onclick = async () => {
-            try {
-                resultDiv.style.display = 'block';
-                resultDiv.textContent = 'Calling Uniswap contract...';
-
-                const walletProvider = modal.getWalletProvider();
-                if (!walletProvider) throw new Error("Wallet not connected. Please try reconnecting.");
-
-                const ethersProvider = new ethers.providers.Web3Provider(walletProvider);
-                const contract = new ethers.Contract(uniswapFactoryAddress, uniswapFactoryAbi, ethersProvider);
-                
-                const tickSpacing = await contract.feeAmountTickSpacing(500);
-
-                resultDiv.textContent = `Uniswap Contract Call Success!\n\nFee Tier: 0.05%\nTick Spacing: ${tickSpacing.toString()}`;
-
-            } catch (error) {
-                console.error("Interaction failed:", error);
-                resultDiv.textContent = `Error: ${error.message}`;
-            }
-        };
 
     </script>
 </body>
