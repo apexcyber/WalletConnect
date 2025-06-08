@@ -27,8 +27,18 @@
         }
         h1 { color: #1f1f1f; margin-bottom: 1rem; }
         p { color: #666; margin-bottom: 1.5rem; line-height: 1.5; }
+        #connection-status {
+            margin-top: 1.5rem;
+            font-size: 14px;
+            color: #2e7d32;
+            background: #e8f5e9;
+            padding: 0.75rem;
+            border-radius: 8px;
+            display: none; /* Hidden by default */
+            word-wrap: break-word;
+        }
         #interaction-section {
-            margin-top: 2rem;
+            margin-top: 1rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e0e0e0;
             display: none; /* Hidden by default */
@@ -36,7 +46,7 @@
         #interaction-section button {
             width: 100%;
             padding: 1rem;
-            background: #322;
+            background: #332; /* User's preferred color */
             color: white;
             border: none;
             border-radius: 12px;
@@ -63,6 +73,8 @@
         <h1>WalletConnect DApp</h1>
         <p>First, connect your wallet. Then, interact with the Uniswap contract.</p>
         <w3m-button></w3m-button>
+
+        <div id="connection-status"></div>
 
         <div id="interaction-section">
             <h2>Uniswap V3 Factory</h2>
@@ -107,22 +119,22 @@
         const interactionSection = document.getElementById('interaction-section');
         const interactButton = document.getElementById('interactButton');
         const resultDiv = document.getElementById('result');
+        const connectionStatusDiv = document.getElementById('connection-status');
 
-        // Uniswap V3 Factory Contract details
         const uniswapFactoryAddress = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
-        const uniswapFactoryAbi = [
-            'function feeAmountTickSpacing(uint24 fee) external view returns (int24)'
-        ];
+        const uniswapFactoryAbi = ['function feeAmountTickSpacing(uint24 fee) external view returns (int24)'];
 
-        // Listen for connection state changes
+        // Listen for state changes to robustly handle mobile connections
         modal.subscribeState(state => {
-            if (state.open) return; // Do nothing while modal is open
+            const isConnected = state.isConnected;
 
-            const provider = modal.getWalletProvider();
-            if (provider) {
-                interactionSection.style.display = 'block';
+            interactionSection.style.display = isConnected ? 'block' : 'none';
+            connectionStatusDiv.style.display = isConnected ? 'block' : 'none';
+
+            if (isConnected) {
+                const address = modal.getAddress();
+                connectionStatusDiv.textContent = `✅ Connected: ${address.slice(0, 6)}...${address.slice(-4)}`;
             } else {
-                interactionSection.style.display = 'none';
                 resultDiv.style.display = 'none';
             }
         });
@@ -133,12 +145,11 @@
                 resultDiv.textContent = 'Calling Uniswap contract...';
 
                 const walletProvider = modal.getWalletProvider();
-                if (!walletProvider) throw new Error("Wallet not connected");
+                if (!walletProvider) throw new Error("Wallet not connected. Please try reconnecting.");
 
                 const ethersProvider = new ethers.providers.Web3Provider(walletProvider);
                 const contract = new ethers.Contract(uniswapFactoryAddress, uniswapFactoryAbi, ethersProvider);
                 
-                // Call the 'feeAmountTickSpacing' function for the 0.05% fee tier (500)
                 const tickSpacing = await contract.feeAmountTickSpacing(500);
 
                 resultDiv.textContent = `Uniswap Contract Call Success!\n\nFee Tier: 0.05%\nTick Spacing: ${tickSpacing.toString()}`;
